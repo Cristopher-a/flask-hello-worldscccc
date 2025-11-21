@@ -22,10 +22,9 @@ def home():
 def ranking():
 
     body =request.get_json()
-    if not body or "eventCode" not in body:
+    eventcode= bady.get("eventCode")
+    if not eventcode:
         return jsonify({"error": "eventCode requerido"}), 400
-
-    eventCode = body["eventCode"]
 
     try:
         # -------------------------
