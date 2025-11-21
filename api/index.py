@@ -17,13 +17,12 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 def home():
     return "API online"
 
-
 @app.route("/ranking", methods=["POST"])
 def ranking():
+    body = request.get_json()
+    eventCode = body.get("eventCode")
 
-    body =request.get_json()
-    eventcode= bady.get("eventCode")
-    if not eventcode:
+    if not eventCode:
         return jsonify({"error": "eventCode requerido"}), 400
 
     try:
@@ -36,7 +35,6 @@ def ranking():
         if not pits or not matches:
             return jsonify([])
 
-        # Indexar pits por (team, region)
         pits_index = {(p["team_number"], p["region"]): p for p in pits}
 
         # -------------------------
@@ -67,7 +65,7 @@ def ranking():
                 try:
                     total += float(row.get(col, 0) or 0)
                 except:
-                    total += 0
+                    pass
             row["score"] = total
 
         # -------------------------
@@ -88,14 +86,13 @@ def ranking():
             teams[t]["auto_in"] += float(row.get("count_in_cage_auto", 0) or 0)
             teams[t]["teleop_in"] += float(row.get("count_in_cage_teleop", 0) or 0)
 
-        # Promedio score
         for t in teams.values():
             t["score"] = round(sum(t["score_list"]) / len(t["score_list"]), 2)
 
         # -------------------------
         # 5️⃣ Ranking FTC (HTTP)
         # -------------------------
-        def ftc_rank(team):
+        def ftc_rank(team, eventCode):
             try:
                 url = f"http://ftc-api.firstinspires.org/v2.0/2024/rankings/{eventCode}"
                 r = requests.get(url, auth=HTTPBasicAuth(
@@ -103,6 +100,7 @@ def ranking():
                     "E936A6EC-14B0-4904-8DF4-E4916CA4E9BB"
                 ))
                 r.raise_for_status()
+
                 ranks = r.json().get("rankings", [])
                 for item in ranks:
                     if item["teamNumber"] == team:
@@ -113,7 +111,7 @@ def ranking():
             return None
 
         for t in teams.values():
-            t["ftc_rank"] = ftc_rank(t["team_number"])
+            t["ftc_rank"] = ftc_rank(t["team_number"], eventCode)
 
         # -------------------------
         # 6️⃣ Calcular alliance_score
@@ -142,6 +140,7 @@ def ranking():
             "error": str(e),
             "traceback": tb
         }), 500
+
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
